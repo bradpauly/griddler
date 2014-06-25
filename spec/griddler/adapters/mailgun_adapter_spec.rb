@@ -15,20 +15,20 @@ describe Griddler::Adapters::MailgunAdapter, '.normalize_params' do
   end
 
   it 'falls back to headers for cc' do
-    params = default_params.merge({
+    params = default_params.merge(
       Cc: '',
       'message-headers' => [['Cc', 'emily@example.mailgun.org']]
-    })
+    )
     normalized_params = Griddler::Adapters::MailgunAdapter.normalize_params(params)
     expect(normalized_params[:cc]).to eq ['emily@example.mailgun.org']
   end
 
   it 'passes the received array of files' do
-    params = default_params.merge({
+    params = default_params.merge(
       'attachment-count' => 2,
       'attachment-1' => upload_1,
       'attachment-2' => upload_2
-    })
+    )
 
     normalized_params = Griddler::Adapters::MailgunAdapter.normalize_params(params)
     normalized_params[:attachments].should eq [upload_1, upload_2]
@@ -41,6 +41,26 @@ describe Griddler::Adapters::MailgunAdapter, '.normalize_params' do
     normalized_params[:attachments].should be_empty
   end
 
+  it 'gets full address from headers' do
+    params = default_params.merge(
+      To: '',
+      'message-headers' => "[[\"To\", \"Alice Cooper <alice@alice.mailgun.org>\"]]"
+    )
+    normalized_params = Griddler::Adapters::MailgunAdapter.normalize_params(params)
+    expect(normalized_params[:to]).to eq ['Alice Cooper <alice@example.mailgun.org>']
+  end
+
+  it 'handles multiple To addresses' do
+    params = default_params.merge(
+      To: 'Alice Cooper <alice@example.mailgun.org>, John Doe <john@example.com>'
+    )
+    normalized_params = Griddler::Adapters::MailgunAdapter.normalize_params(params)
+    expect(normalized_params[:to]).to eq [
+      'Alice Cooper <alice@example.mailgun.org>',
+      'John Doe <john@example.com>'
+    ]
+  end
+
   def default_params
     params = {
       recipient: 'alice@example.mailgun.org',
@@ -50,7 +70,7 @@ describe Griddler::Adapters::MailgunAdapter, '.normalize_params' do
       from: 'Bob <bob@11crows.mailgun.org>',
       'body-plain' => text_body,
       'body-html' => text_html,
-      'message-headers' => []
+      'message-headers' => "[[\"Received\", \"by luna.mailgun.net with SMTP mgrt 8788212249833; Fri, 26 Apr 2013 18:50:30 +0000\"], [\"Received\", \"from [10.20.76.69] (Unknown [50.56.129.169]) by mxa.mailgun.org with ESMTP id 517acc75.4b341f0-worker2; Fri, 26 Apr 2013 18:50:29 -0000 (UTC)\"], [\"Message-Id\", \"<517ACC75.5010709@11crows.mailgun.org>\"], [\"Date\", \"Fri, 26 Apr 2013 11:50:29 -0700\"], [\"From\", \"Bob <bob@11crows.mailgun.org>\"], [\"User-Agent\", \"Mozilla/5.0 (X11; Linux x86_64; rv:17.0) Gecko/20130308 Thunderbird/17.0.4\"], [\"Mime-Version\", \"1.0\"], [\"To\", \"Alice <alice@11crows.mailgun.org>\"], [\"Subject\", \"Re: Sample POST request\"], [\"References\", \"<517AC78B.5060404@11crows.mailgun.org>\"], [\"In-Reply-To\", \"<517AC78B.5060404@11crows.mailgun.org>\"], [\"X-Mailgun-Variables\", \"{\\\"my_var_1\\\": \\\"Mailgun Variable #1\\\", \\\"my-var-2\\\": \\\"awesome\\\"}\"], [\"Content-Type\", \"multipart/mixed; boundary=\\\"------------020601070403020003080006\\\"\"], [\"Sender\", \"bob@11crows.mailgun.org\"]]"
     }
   end
 
